@@ -1,1 +1,1 @@
-# reactive_dance_synthesis
+# Reactive Motion Synthesis for Two-person Interactions 
