@@ -107,3 +107,5 @@ python src/Lindyhop/test_full_diffusion.py
 Set 'is_eval' flag to True to get the evaluation metrics.
 
 Download the pre-trained weights for the Lindy Hop motions from [here](https://vcai.mpi-inf.mpg.de/projects/remos/LindyHop_pretrained_weights.zip) and unzip them under `save/LindyHop/`.
+
+** Training codes and prre-trained weights for Ninjutsu will be released soon! **
