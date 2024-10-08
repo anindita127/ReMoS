@@ -237,5 +237,5 @@ if __name__ == "__main__":
     root_path = os.path.join('..', 'DATASETS', 'ReMocap', 'LindyHop')
     fps = 20
     pp = PreProcessor(root_path, fps, 'train')
-    # pp = PreProcessor(root_path, fps, 'test')
+    pp = PreProcessor(root_path, fps, 'test')
 
