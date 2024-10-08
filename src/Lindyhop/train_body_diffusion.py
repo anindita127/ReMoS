@@ -33,7 +33,6 @@ from src.Lindyhop.models.Gaussian_diffusion import (
 from src.Lindyhop.skeleton import *
 from src.Lindyhop.visualizer import plot_contacts3D
 from src.tools.bookkeeper import *
-from src.tools.calculate_ev_metrics import *
 from src.tools.transformations import *
 from src.tools.utils import makepath
 
@@ -221,19 +220,6 @@ class Trainer:
         self.generated = output['pred'] # synthesized pose 2
         return t, output['x_noisy']
     
-    def generate(self, motion1, motion2=None):
-        B, T, J, dim_pose = motion1.shape
-        output = self.diffusion.p_sample_loop(
-            self.model_pose,
-            (B, T, J, dim_pose),
-            clip_denoised=False,
-            progress=True,
-            pre_seq= motion2,
-            model_kwargs={
-                'motion1': motion1,
-                'spatial_guidance': False
-            })
-        return output
 
     
     def root_relative_normalization(self, global_pose1, global_pose2):
@@ -268,8 +254,7 @@ class Trainer:
         for count, batch in enumerate(training_tqdm):
             self.optimizer_model_pose.zero_grad()
             
-            # with torch.autograd.detect_anomaly():
-            if True:
+            with torch.autograd.detect_anomaly():
                 global_pose1 = batch['pose_canon_1'].to(self.device).float()
                 global_pose2 = batch['pose_canon_2'].to(self.device).float()
                 self.contact_map = batch['contacts'].to(self.device).float()
@@ -395,106 +380,7 @@ class Trainer:
         print('Finished Training at %s\n' % (datetime.strftime(endtime, '%Y-%m-%d_%H:%M:%S')))
         print('Training complete in %s!\n' % (endtime - starttime))
 
-    def test(self, plotfiles=True):
-        self.model_pose.eval()
-        T = self.frames
-        total_frames = 500
-        annot_dict = self.ds_data.annot_dict
-        pose_canon_1 = torch.tensor(annot_dict['pose_canon_1'][0]).to(self.device).float()
-        rotmat_1 = torch.tensor(annot_dict['rotmat_1'][0]).to(self.device).float()
-        pose_canon_2 = torch.tensor(annot_dict['pose_canon_2'][0]).to(self.device).float()
-        _, J, dim = pose_canon_1.shape
-        global_action_pose = []
-        global_reaction_pose = []
-        global_gt_reaction_pose = []
-        reaction_pose_out = None
-        for count in range(0, total_frames, T):
-            rotmat_1_orient = rotmat_1[count:count+T]
-            global_pose1 = pose_canon_1[count:count+T].reshape(1, T, J, dim)
-            global_pose2 = pose_canon_2[count:count+T].reshape(1, T, J, dim)
-            self.global_root_origin = global_pose1[:, :, 0].to(self.device).float()
-                
-            self.root_relative_normalization(global_pose1, global_pose2)
-            reaction_pose_out = self.generate(self.pose1_root_rel, motion2=reaction_pose_out)
-            action_pose, reaction_pose = self.root_relative_unnormalization(self.pose1_root_rel, reaction_pose_out)
-            global_reaction_pose.append(reaction_pose)
-            global_action_pose.append( action_pose)
-            global_gt_reaction_pose.append( self.skel.select_bvh_joints(global_pose2, original_joint_order=self.skel.bvh_joint_order,
-                                                             new_joint_order=self.skel.body_only))
-            
-            
-        savefolder = makepath(os.path.join(args.load[:-2], self.testtime_split, str(annot_dict['seq'][0])+'_'+str(count)), isfile=True)
-        global_action_pose = torch.cat(global_action_pose, dim=1)
-        global_reaction_pose = torch.cat(global_reaction_pose, dim=1)
-        global_gt_reaction_pose = torch.cat(global_gt_reaction_pose, dim=1)
-        plot_contacts3D(pose1=(global_action_pose[0].detach().cpu().numpy()),
-                            pose2=(global_reaction_pose[0].detach().cpu().numpy()),
-                            gt_pose2=None,
-                            # gt_pose2=(global_gt_reaction_pose[0].detach().cpu().numpy()),
-                            savepath=savefolder, kinematic_chain = 'no_fingers', onlyone=False)
-            
-    def evaluate_stat_metric(self):
         
-        gt_motion_embedding = []
-        syn_motion_embedding = []
-        global_action_pose = []
-        global_action_pose = []
-        global_reaction_pose = []
-        global_gt_reaction_pose = [] 
-        self.model_pose.eval()
-        T = self.frames
-        eval_tqdm = tqdm(self.load_ds_data, desc='eval' + ' {:.10f}'.format(0), leave=False, ncols=120)
-
-        for count, batch in enumerate(eval_tqdm):
-            global_pose1 = batch['pose_canon_1'].to(self.device).float()
-            global_pose2 = batch['pose_canon_2'].to(self.device).float()
-            self.contact_map = batch['contacts'].to(self.device).float()
-            self.global_root_origin = batch['global_root_origin'].to(device).float()
-            if global_pose1.shape[1] == 0:
-                continue
-            self.root_relative_normalization(global_pose1, global_pose2)
-            reaction_pose_out = self.generate(self.pose1_root_rel)
-            gt_motion_embedding_ = self.model_pose.get_motion_embedding(self.pose2_root_rel)
-            syn_motion_embedding_ = self.model_pose.get_motion_embedding(reaction_pose_out)
-            action_pose, reaction_pose = self.root_relative_unnormalization(self.pose1_root_rel, reaction_pose_out)
-            gt_motion_embedding.append(gt_motion_embedding_[:, :, 0])
-            syn_motion_embedding.append(syn_motion_embedding_[:, :, 0])
-            global_reaction_pose.append(reaction_pose)
-            global_action_pose.append( action_pose)
-            global_gt_reaction_pose.append( self.skel.select_bvh_joints(global_pose2, original_joint_order=self.skel.bvh_joint_order,
-                                                             new_joint_order=self.skel.body_only))
-        global_action_pose = torch.cat(global_action_pose, dim=1).detach().cpu().numpy()
-        global_reaction_pose = torch.cat(global_reaction_pose, dim=1).detach().cpu().numpy()
-        global_gt_reaction_pose = torch.cat(global_gt_reaction_pose, dim=1).detach().cpu().numpy()
-        gt_motion_embedding = torch.cat(gt_motion_embedding, dim=0).detach().cpu().numpy()
-        syn_motion_embedding = torch.cat(syn_motion_embedding, dim=0).detach().cpu().numpy()
-        gt_mu, gt_cov = calculate_activation_statistics(gt_motion_embedding.reshape(count, -1))
-        syn_mu, syn_cov = calculate_activation_statistics(syn_motion_embedding.reshape(count, -1))
-        mpjpe =  mean_l2di_(global_reaction_pose, global_gt_reaction_pose).item()
-        jitter =  mean_l2di_(global_reaction_pose[:, 1:] - global_reaction_pose[:, :-1],
-                             global_gt_reaction_pose[:, 1:] - global_gt_reaction_pose[:, :-1]).item()
-        fid = calculate_frechet_distance(gt_mu, gt_cov, syn_mu, syn_cov)
-        GT_fid = calculate_frechet_distance(gt_mu, gt_cov, gt_mu, gt_cov)
-        diversity = calculate_diversity(global_reaction_pose, diversity_times=300)
-        GT_diversity = calculate_diversity(global_gt_reaction_pose, diversity_times=300)
-        print('mpjpe', mpjpe)
-        print('jitter', jitter)
-        print('FID', fid)
-        print('Diversity', diversity)
-        output_metrics_dict = {
-            'mpjpe': float(mpjpe),
-            'jitter': float(jitter),
-            'diversity': float(diversity),
-            'gt_diversity': float(GT_diversity),
-            'fid': float(fid),
-            'gt_fid': float(GT_fid),
-        }
-
-        # Save JSON string to a text file
-        savefile = makepath(os.path.join(args.load[:-2], self.testtime_split, str(count), 'metrics.txt'), isfile=True)
-        
-        with open(savefile, "w") as filep:
-            json.dump(output_metrics_dict, filep)
                        
 if __name__ == '__main__':
     args = argparseNloop()
@@ -509,18 +395,9 @@ if __name__ == '__main__':
         'bone': 1.0,
         'foot': 0.0
     }
-    args.load = os.path.join('save', 'Lindyhop', 'diffusion', 'exp_4_model_DiffusionTransformer_batchsize_32_frames_20_',
-                            'exp_4_model_DiffusionTransformer_batchsize_32_frames_20_000600.p' )
-    is_train = False
-    is_eval = False
+    is_train = True
     ablation = None       # if True then ablation: no_IAC_loss
     model_trainer = Trainer(args=args, is_train=is_train, split='test', JT_POSITION=True, num_jts=27)
-    print("** Method Inititalization Complete **")
-    if is_train:
-        model_trainer.fit(ablation=ablation)
-    else:
-        assert os.path.exists(args.load)
-        if is_eval:
-            model_trainer.evaluate_stat_metric()    
-        else:
-            model_trainer.test()    
+    print("** Method Initialization Complete **")
+    model_trainer.fit(ablation=ablation)
+     
