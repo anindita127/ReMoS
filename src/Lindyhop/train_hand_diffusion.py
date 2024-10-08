@@ -126,12 +126,9 @@ class Trainer:
         
     def load_data_testtime(self, args):
         self.ds_data = LindyHopDataset(args, window_size=self.frames, split=self.testtime_split)
-        # self.ds_data = DataLoader(ds_data, batch_size=1, shuffle=False, num_workers=0, drop_last=True)
-        # print('Data split loaded. Size=', len(self.ds_data.dataset))
         
     def load_data(self, args):
-        # ds_train = LindyHandsDataset(args, window_size=self.frames, split='train')
-        ds_train = LindyHopDataset(args, window_size=self.frames, split='train_full')
+        ds_train = LindyHopDataset(args, window_size=self.frames, split='train')
         self.ds_train = DataLoader(ds_train, batch_size=args.batch_size, shuffle=True, num_workers=0, drop_last=True)
         print('Train set loaded. Size=', len(self.ds_train.dataset))
         ds_val = LindyHopDataset(args, window_size=self.frames, split='test')
@@ -259,14 +256,6 @@ class Trainer:
         B = self.p1_rhand_wrist_pos.shape[0]
         T = self.p1_rhand_wrist_pos.shape[1]
         
-        # # create a contact map based on threshold of wrists  
-        # # contact maps 0: rh-rh, 1: lh-lh, 2: lh-rh , 3: rh-lh
-        # self.contact_dist = torch.zeros(B, T, 4).to(p1_lhand_pos.device).float()
-        # self.contact_dist[:, :, 0] = ((self.p1_rhand_wrist_pos - self.p2_rhand_wrist_pos)).norm(dim=-1)/self.scale
-        # self.contact_dist[:, :, 1] = ((self.p1_lhand_wrist_pos - self.p2_lhand_wrist_pos)).norm(dim=-1)/self.scale
-        # self.contact_dist[:, :, 2] = ((self.p1_lhand_wrist_pos - self.p2_rhand_wrist_pos)).norm(dim=-1)/self.scale
-        # self.contact_dist[:, :, 3] = ((self.p1_rhand_wrist_pos - self.p2_lhand_wrist_pos)).norm(dim=-1)/self.scale
-        
         self.contact_map = contact_maps.to(self.device).float()
         self.input_condn = torch.cat((self.p1_rhand_pos.reshape(B, T, -1), self.p1_lhand_pos.reshape(B, T, -1),
                                       self.contact_map), dim=-1)
@@ -286,28 +275,11 @@ class Trainer:
             if True:
                 global_pose1 = batch['pose_canon_1'].to(self.device).float()
                 global_pose2 = batch['pose_canon_2'].to(self.device).float()
-                # global_rot1 = rotmat2d6_tensor(batch['rotmat_1']).to(self.device).float()
-                # global_rot2 = rotmat2d6_tensor(batch['rotmat_2']).to(self.device).float()
                 if global_pose1.shape[1] == 0:
                     continue
-                # self.relative_normalization(global_pose1, global_pose2, global_rot1, global_rot2)
                 self.pose_relative_normalization(global_pose1, global_pose2, batch['contacts'])
                 t, noisy = self.forward(self.input_condn, self.input)
-                # #control timesteps
-                # timesteps = torch.LongTensor([diff_count[count]]).to(self.device)
-                # timesteps, x_start_noisy = self.forward(self.pose1_root_rel, self.pose2_root_rel, timesteps)
-                # save_folder = 'diffusion_visuals/mean_std_' + self.beta_scheduler + '_' + str(self.diffusion_steps)+'_/'+ str(timesteps.item())
-                # unnormalized_xstart_noisy = x_start_noisy[0] * self.mean_var_norm['p1_body_std'] + self.mean_var_norm['p1_body_mean'] 
-                # unnormalized_p1 = self.pose1_root_rel[0] * self.mean_var_norm['p1_body_std'] + self.mean_var_norm['p1_body_mean'] 
-                # unnormalized_p2 = self.pose2_root_rel[0] * self.mean_var_norm['p2_body_std'] + self.mean_var_norm['p2_body_mean'] 
-                
-                # plot_contacts3D(unnormalized_p1.detach().cpu(), unnormalized_xstart_noisy.detach().cpu(), 
-                #                     savepath=save_folder, kinematic_chain='no_fingers', onlyone=False, gif=True)
-                # torch.cuda.empty_cache()
-                # if count >= 8:
-                #     break
-                # else:
-                #     continue
+               
                 loss_logs = self.calc_loss(num_epoch)
                 loss_model = sum(loss_logs)
                 total_train_loss += loss_model.item()
@@ -316,11 +288,8 @@ class Trainer:
                     print('Train loss is nan')
                     exit()
                 loss_model.backward()
-                # torch.nn.utils.clip_grad_norm_(self.model_pose.parameters(), 1)
                 torch.nn.utils.clip_grad_value_(self.model_pose.parameters(), 0.01)
                 self.optimizer_model_pose.step()
-                # if torch.sum(torch.isnan(self.model_pose.motion1_pre_joint_proj.weight)):
-                #     exit()
             
         avg_train_loss = total_train_loss/(count + 1)
         return avg_train_loss
@@ -335,17 +304,13 @@ class Trainer:
             if True:
                 global_pose1 = batch['pose_canon_1'].to(self.device).float()
                 global_pose2 = batch['pose_canon_2'].to(self.device).float()
-                # global_rot1 = rotmat2d6_tensor(batch['rotmat_1']).to(self.device).float()
-                # global_rot2 = rotmat2d6_tensor(batch['rotmat_2']).to(self.device).float()
                 if global_pose1.shape[1] == 0:
                     continue
-                # self.relative_normalization(global_pose1, global_pose2, global_rot1, global_rot2)
                 self.pose_relative_normalization(global_pose1, global_pose2, batch['contacts'])
                 t, noisy = self.forward(self.input_condn, self.input)
                 loss_logs = self.calc_loss(num_epoch)
                 loss_model = sum(loss_logs)
                 total_eval_loss += loss_model.item()
-               
                                   
         avg_eval_loss = total_eval_loss/(count + 1)
        
@@ -380,29 +345,6 @@ class Trainer:
                 f.close()   
                 best_eval = eval_loss
             if epoch_num > 20 and epoch_num % 20 == 0 :
-                # pos_loss_plot = makepath(os.path.join(self.args.save_dir, self.book.name.name, 'loss_plot', self.book.name.name + '{:06d}'.format(epoch_num), 'pos_loss.png'), isfile=True)
-                # vel_loss_plot = makepath(os.path.join(self.args.save_dir, self.book.name.name, 'loss_plot', self.book.name.name + '{:06d}'.format(epoch_num), 'vel_loss.png'), isfile=True)
-                # bone_loss_plot = makepath(os.path.join(self.args.save_dir, self.book.name.name, 'loss_plot', self.book.name.name + '{:06d}'.format(epoch_num), 'bone_loss.png'), isfile=True)
-                # foot_loss_plot = makepath(os.path.join(self.args.save_dir, self.book.name.name, 'loss_plot', self.book.name.name + '{:06d}'.format(epoch_num), 'foot_loss.png'), isfile=True)
-                
-                # fig = plt.figure()
-                # # plt.plot(train_pos_loss, marker='o', c='b')
-                # plt.plot(eval_pos_loss, marker='o', c='r')
-                # fig.savefig(pos_loss_plot)
-                # fig = plt.figure()
-                # # plt.plot(train_vel_loss, marker='o', c='b')
-                # plt.plot(eval_vel_loss, marker='o', c='r')
-                # fig.savefig(vel_loss_plot)
-                # fig = plt.figure()
-                # # plt.plot(train_bone_loss, marker='o', c='b')
-                # plt.plot(eval_bone_loss, marker='o', c='r')
-                # fig.savefig(bone_loss_plot)
-                # fig = plt.figure()
-                # # plt.plot(train_footskate_loss, marker='o', c='b')
-                # plt.plot(eval_footskate_loss, marker='o', c='r')
-                # fig.savefig(foot_loss_plot)
-                # fig = plt.figure()
-                # plt.close()
                 f = open(os.path.join(self.args.save_dir, self.book.name.name, self.book.name.name + '{:06d}'.format(epoch_num) + '.p'), 'wb') 
                 save_model_dict.update({'model_pose': self.model_pose.state_dict()})
                 torch.save(save_model_dict, f)
@@ -411,44 +353,7 @@ class Trainer:
         print('Finished Training at %s\n' % (datetime.strftime(endtime, '%Y-%m-%d_%H:%M:%S')))
         print('Training complete in %s!\n' % (endtime - starttime))
 
-    def test(self, plotfiles=True):
-        self.model_pose.eval()
-        T = self.frames
-        total_frames = 40
-        annot_dict = self.ds_data.annot_dict
-        pose_canon_1 = torch.tensor(annot_dict['pose_canon_1'][0]).to(self.device).float()
-        rotmat_1 = torch.tensor(annot_dict['rotmat_1'][0]).to(self.device).float()
-        rotmat_2 = torch.tensor(annot_dict['rotmat_2'][0]).to(self.device).float()
-        pose_canon_2 = torch.tensor(annot_dict['pose_canon_2'][0]).to(self.device).float()
-        _, J, dim = pose_canon_1.shape
-        global_action_pose = []
-        global_reaction_pose = []
-        global_gt_reaction_pose = []
-        reaction_handrot_out = None
-        for count in range(0, total_frames, T):
-            global_rot1 = rotmat2d6_tensor(rotmat_1[count:count+T])
-            global_rot2 = rotmat2d6_tensor(rotmat_2[count:count+T])
-            global_pose1 = pose_canon_1[count:count+T].reshape(1, T, J, dim)
-            global_pose2 = pose_canon_2[count:count+T].reshape(1, T, J, dim)
-               
-            self.relative_normalization(global_pose1, global_pose2, global_rot1, global_rot2)
-            reaction_handrot_out = self.generate(self.input_condn, motion2=reaction_handrot_out)
-            action_pose, reaction_hand_rot = self.root_relative_unnormalization(self.pose1_root_rel, reaction_handrot_out)
-            global_reaction_pose.append(reaction_hand_rot)
-            global_action_pose.append( action_pose)
-            global_gt_reaction_pose.append( self.skel.select_bvh_joints(global_pose2, original_joint_order=self.skel.bvh_joint_order,
-                                                             new_joint_order=self.skel.body_only))
-            
-            
-        savefolder = makepath(os.path.join(args.load[:-2], self.testtime_split, str(annot_dict['seq'][0])+'_'+str(count)), isfile=True)
-        global_action_pose = torch.cat(global_action_pose, dim=1)
-        global_reaction_pose = torch.cat(global_reaction_pose, dim=1)
-        global_gt_reaction_pose = torch.cat(global_gt_reaction_pose, dim=1)
-        plot_contacts3D(pose1=(global_action_pose[0].detach().cpu().numpy()),
-                            pose2=(global_reaction_pose[0].detach().cpu().numpy()),
-                            gt_pose2=(global_gt_reaction_pose[0].detach().cpu().numpy()),
-                            savepath=savefolder, kinematic_chain = 'no_fingers', onlyone=False)
-            
+    
             
 if __name__ == '__main__':
     args = argparseNloop()
@@ -461,17 +366,11 @@ if __name__ == '__main__':
         'pos': 1e+3,
         'vel': 1e+1,
         'bone': 1.0,
-        'foot': 0.0,
-        
+        'foot': 0.0,   
     }
-    # args.load = os.path.join('save', 'Lindyhop', 'diffusionhand', 'exp_12_model_DiffusionTransformer_batchsize_128_frames_25_',
-    #                         'exp_12_model_DiffusionTransformer_batchsize_128_frames_25_001000.p' )
     is_train = True
     ablation = None       # if True then ablation: no_IAC_loss
     model_trainer = Trainer(args=args, is_train=is_train, split='train', JT_POSITION=True, num_jts=11)
-    print("** Method Inititalization Complete **")
-    if is_train:
-        model_trainer.fit(ablation=ablation)
-    else:
-        assert os.path.exists(args.load)
-        model_trainer.test()    
+    print("** Method Initialization Complete **")
+    model_trainer.fit(ablation=ablation)
+      
