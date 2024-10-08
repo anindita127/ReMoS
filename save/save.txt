@@ -1,0 +1,1 @@
+The pre-trained weights are saved in this folder.
