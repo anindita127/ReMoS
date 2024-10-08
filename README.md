@@ -1,3 +1,13 @@
+# ReMoS: 3D Motion-Conditioned Reaction Synthesis for Two-Person Interactions (European Conference on Computer Vision (ECCV) 2024)
+
+[Paper](https://www.ecva.net/papers/eccv_2024/papers_ECCV/papers/05358.pdf) | 
+[Video](https://vcai.mpi-inf.mpg.de/projects/remos/Remos_ECCV_v2_1.mp4) | 
+[Project Page](https://vcai.mpi-inf.mpg.de/projects/remos/)
+
+<img src="https://vcai.mpi-inf.mpg.de/projects/remos/images/teaser.jpg" alt="teaser image" />
+
+
+
 ## Pre-requisites
 We have tested our code on the following setups: 
 * Ubuntu 20.04 LTS
