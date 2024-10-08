@@ -1,5 +1,5 @@
 # ReMoS: 3D Motion-Conditioned Reaction Synthesis for Two-Person Interactions 
-## Accepted at the European Conference on Computer Vision (ECCV) 2024.
+Accepted at the European Conference on Computer Vision (ECCV) 2024.
 
 [Paper](https://www.ecva.net/papers/eccv_2024/papers_ECCV/papers/05358.pdf) | 
 [Video](https://vcai.mpi-inf.mpg.de/projects/remos/Remos_ECCV_v2_1.mp4) | 
