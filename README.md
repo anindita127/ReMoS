@@ -91,7 +91,7 @@ The format of the dataset folder should be as follows:
 python src/Lindyhop/process_LindyHop.py
 python src/Ninjutsu/process_Ninjutsu.py
 ```
-This will create the 'train.pkl' and 'test.pkl' under 'data/' folder.
+This will create the 'train.pkl' and 'test.pkl' under `data/` folder.
 
 ## Training and testing on the Lindy Hop motion data 
 
