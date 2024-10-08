@@ -1,4 +1,5 @@
-# ReMoS: 3D Motion-Conditioned Reaction Synthesis for Two-Person Interactions (European Conference on Computer Vision (ECCV) 2024)
+# ReMoS: 3D Motion-Conditioned Reaction Synthesis for Two-Person Interactions 
+## Accepted at the European Conference on Computer Vision (ECCV) 2024.
 
 [Paper](https://www.ecva.net/papers/eccv_2024/papers_ECCV/papers/05358.pdf) | 
 [Video](https://vcai.mpi-inf.mpg.de/projects/remos/Remos_ECCV_v2_1.mp4) | 
@@ -33,6 +34,7 @@ apt-get update
 apt-get install python3-opengl
 ```
 
+## Dataset download and preprocess
 Download the ReMoCap dataset from the [ReMoS website](https://vcai.mpi-inf.mpg.de/projects/remos/#dataset_section). Unzip and place th dataset under `../DATASETS/ReMoCap`. 
 The format of the dataset folder should be as follows:
 ```bash
@@ -90,3 +92,16 @@ python src/Lindyhop/process_LindyHop.py
 python src/Ninjutsu/process_Ninjutsu.py
 ```
 
+## Training and testing on the Lindy Hop motion data 
+
+4. To train the ReMoS model on the Lindy Hop motions in our setting, run:
+```
+python src/Lindyhop/train_body_diffusion.py
+python src/Lindyhop/train_hand_diffusion.py
+```
+
+5. To test and evaluate the ReMoS model on the Lindy Hop motions, run:
+```
+python src/Lindyhop/test_full_diffusion.py
+```
+Set 'is_eval' flag to True to get the evaluation metrics.
