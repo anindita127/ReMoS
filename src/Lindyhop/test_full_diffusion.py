@@ -144,11 +144,7 @@ class Trainer:
                                 'exp_82_model_transAE_batchsize_32_frames_20_000300.p' )
             m = torch.load(open(mot_enc_weights_path, 'rb'))
             self.mot_enc.load_state_dict(m['model_pose'])
-            self.hand_mot_enc = VanillaTransformer(args, njoints=22).to(self.device).float()    
-            hand_mot_enc_weights_path = os.path.join('save', 'Lindyhop', 'mot_enc', 'exp_94_model_transAE_batchsize_32_frames_20_',
-                                'exp_94_model_transAE_batchsize_32_frames_20_000033.p' )
-            m = torch.load(open(hand_mot_enc_weights_path, 'rb'))
-            self.hand_mot_enc.load_state_dict(m['model_pose'])
+            
         
     def load_data_testtime(self, args):
         self.ds_data = LindyHopDataset(args, window_size=self.frames, split=self.testtime_split)
@@ -329,14 +325,70 @@ class Trainer:
                             pose2=(global_reaction_pose[0].detach().cpu().numpy()),
                             gt_pose2=None,
                             savepath='./save/LindyHop/render_result', kinematic_chain = 'reduced', onlyone=False)
+
+    def rearrange_joints_full(self, rec_global_reaction_pose, gt_pose2_parent_rel):
+        full_reactive_pose = torch.zeros(rec_global_reaction_pose.shape[0], 
+                                         rec_global_reaction_pose.shape[1], 69, 3).to(self.device).float()
+        full_reactive_pose[:, :, :18] = rec_global_reaction_pose[:, :, :18]  
+        full_reactive_pose[:, :, 18] = rec_global_reaction_pose[:, :, 18] 
+        full_reactive_pose[:, :, 19] = full_reactive_pose[:, :, 18] + gt_pose2_parent_rel[:, :, 19-1] 
+        full_reactive_pose[:, :, 20] = rec_global_reaction_pose[:, :, 19] 
+        full_reactive_pose[:, :, 21] = full_reactive_pose[:, :, 20] + gt_pose2_parent_rel[:, :, 21-1] 
+        full_reactive_pose[:, :, 22] = full_reactive_pose[:, :, 21] + gt_pose2_parent_rel[:, :, 22-1] 
+        full_reactive_pose[:, :, 23] = rec_global_reaction_pose[:, :, 20]
+        full_reactive_pose[:, :, 24] = rec_global_reaction_pose[:, :, 21]
+        full_reactive_pose[:, :, 25] = full_reactive_pose[:, :, 24] + gt_pose2_parent_rel[:, :, 25-1]
+        full_reactive_pose[:, :, 26] = full_reactive_pose[:, :, 25] + gt_pose2_parent_rel[:, :, 26-1]
+        full_reactive_pose[:, :, 27] = rec_global_reaction_pose[:, :, 22]
+        full_reactive_pose[:, :, 28] = rec_global_reaction_pose[:, :, 23] 
+        full_reactive_pose[:, :, 29] = full_reactive_pose[:, :, 28] + gt_pose2_parent_rel[:, :, 29-1]
+        full_reactive_pose[:, :, 30] = full_reactive_pose[:, :, 29] + gt_pose2_parent_rel[:, :, 30-1]
+        full_reactive_pose[:, :, 31] = rec_global_reaction_pose[:, :, 24] 
+        full_reactive_pose[:, :, 32] = rec_global_reaction_pose[:, :, 25] 
+        full_reactive_pose[:, :, 33] = full_reactive_pose[:, :, 32] + gt_pose2_parent_rel[:, :, 33-1] 
+        full_reactive_pose[:, :, 34] = full_reactive_pose[:, :, 33] + gt_pose2_parent_rel[:, :, 34-1]
+        full_reactive_pose[:, :, 35] = rec_global_reaction_pose[:, :, 26]
+        full_reactive_pose[:, :, 36] = rec_global_reaction_pose[:, :, 27]
+        full_reactive_pose[:, :, 37] = full_reactive_pose[:, :, 36] + gt_pose2_parent_rel[:, :, 37-1]
+        full_reactive_pose[:, :, 38] = full_reactive_pose[:, :, 37] + gt_pose2_parent_rel[:, :, 38-1]
+        full_reactive_pose[:, :, 39] = rec_global_reaction_pose[:, :, 28]
+        full_reactive_pose[:, :, 40] = rec_global_reaction_pose[:, :, 29]
+        full_reactive_pose[:, :, 41] = rec_global_reaction_pose[:, :, 30]
+        full_reactive_pose[:, :, 42] = rec_global_reaction_pose[:, :, 31]
+        full_reactive_pose[:, :, 43] = rec_global_reaction_pose[:, :, 32]
+        full_reactive_pose[:, :, 44] = full_reactive_pose[:, :, 43] + gt_pose2_parent_rel[:, :, 44-1] 
+        full_reactive_pose[:, :, 45] = rec_global_reaction_pose[:, :, 33] 
+        full_reactive_pose[:, :, 46] = full_reactive_pose[:, :, 45] + gt_pose2_parent_rel[:, :, 46-1] 
+        full_reactive_pose[:, :, 47] = full_reactive_pose[:, :, 46] + gt_pose2_parent_rel[:, :, 47-1] 
+        full_reactive_pose[:, :, 48] = rec_global_reaction_pose[:, :, 34]
+        full_reactive_pose[:, :, 49] = rec_global_reaction_pose[:, :, 35]
+        full_reactive_pose[:, :, 50] = full_reactive_pose[:, :, 49] + gt_pose2_parent_rel[:, :, 50-1]
+        full_reactive_pose[:, :, 51] = full_reactive_pose[:, :, 50] + gt_pose2_parent_rel[:, :, 51-1]
+        full_reactive_pose[:, :, 52] = rec_global_reaction_pose[:, :, 36]
+        full_reactive_pose[:, :, 53] = rec_global_reaction_pose[:, :, 37] 
+        full_reactive_pose[:, :, 54] = full_reactive_pose[:, :, 53] + gt_pose2_parent_rel[:, :, 54-1]
+        full_reactive_pose[:, :, 55] = full_reactive_pose[:, :, 54] + gt_pose2_parent_rel[:, :, 55-1]
+        full_reactive_pose[:, :, 56] = rec_global_reaction_pose[:, :, 38] 
+        full_reactive_pose[:, :, 57] = rec_global_reaction_pose[:, :, 39] 
+        full_reactive_pose[:, :, 58] = full_reactive_pose[:, :, 57] + gt_pose2_parent_rel[:, :, 58-1] 
+        full_reactive_pose[:, :, 59] = full_reactive_pose[:, :, 58] + gt_pose2_parent_rel[:, :, 59-1]
+        full_reactive_pose[:, :, 60] = rec_global_reaction_pose[:, :, 40]
+        full_reactive_pose[:, :, 61] = rec_global_reaction_pose[:, :, 41]
+        full_reactive_pose[:, :, 62] = full_reactive_pose[:, :, 61] + gt_pose2_parent_rel[:, :, 62-1]
+        full_reactive_pose[:, :, 63] = full_reactive_pose[:, :, 62] + gt_pose2_parent_rel[:, :, 63-1]
+        full_reactive_pose[:, :, 64] = rec_global_reaction_pose[:, :, 42]
+        full_reactive_pose[:, :, 65] = rec_global_reaction_pose[:, :, 43]
+        full_reactive_pose[:, :, 66] = rec_global_reaction_pose[:, :, 44]
+        full_reactive_pose[:, :, 67] = rec_global_reaction_pose[:, :, 45]
+        full_reactive_pose[:, :, 68] = rec_global_reaction_pose[:, :, 46]
+        return full_reactive_pose
+
     
     def evaluate_stat_metric(self):
         reaction_pose_out = None
         hand_reaction_pose_out = None
         gt_motion_embedding = []
-        gt_hand_motion_embedding = []
         syn_motion_embedding = []
-        syn_hand_motion_embedding = []
         global_action_pose = []
         global_action_pose = []
         global_reaction_pose = []
@@ -347,9 +399,9 @@ class Trainer:
 
         for count, batch in enumerate(eval_tqdm):
             global_pose1 = batch['pose_canon_1'].to(self.device).float()
-           
+            p1_parent_rel = batch['p1_parent_rel'].to(self.device).float()
             global_pose2 = batch['pose_canon_2'].to(self.device).float()
-            
+            p2_parent_rel = batch['p2_parent_rel'].to(self.device).float()
             self.contact_map = batch['contacts'].to(self.device).float()
             self.global_root_origin = batch['global_root_origin'].to(device).float()
             if global_pose1.shape[1] == 0:
@@ -357,36 +409,19 @@ class Trainer:
             B = global_pose1.shape[0]
             T = global_pose1.shape[1]
             
-            self.root_relative_normalization(global_pose1, global_pose2)
+            self.root_relative_normalization(global_pose1)
             reaction_pose_out = self.generate_body(self.pose1_root_rel, motion2=reaction_pose_out, contact_maps= self.contact_map)
             
             
-            action_pose, reaction_pose, gt_reaction_pose = self.root_relative_unnormalization(self.pose1_root_rel, reaction_pose_out, self.pose2_root_rel)
-            gt_motion_embedding_ = self.mot_enc.encode(gt_reaction_pose)
+            action_pose, reaction_pose = self.root_relative_unnormalization(self.pose1_root_rel, reaction_pose_out)
+            gt_motion_embedding_ = self.mot_enc.encode(self.skel.select_bvh_joints(
+                global_pose2, original_joint_order=self.skel.bvh_joint_order, new_joint_order=self.skel.body_only))
             syn_motion_embedding_ = self.mot_enc.encode(reaction_pose)
             
-            self.hand_pose_relative_normalization(global_pose1=global_pose1, contact_maps=self.contact_map, global_pose2=global_pose2)
+            self.hand_pose_relative_normalization(global_pose1=global_pose1, contact_maps=self.contact_map)
             hand_reaction_pose_out = self.generate_hand(self.input_condn, motion2=hand_reaction_pose_out)
             self.hand_pose_relative_unnormalization(reaction_body_pose= reaction_pose, 
                                                     normalized_reaction_hand_pose=hand_reaction_pose_out)
-            gt_hand_motion_embedding_ = self.hand_mot_enc.encode(torch.cat((self.skel.select_bvh_joints(
-                global_pose2, original_joint_order=self.skel.bvh_joint_order, new_joint_order=self.skel.rh_fingers_only),
-                                                                            self.skel.select_bvh_joints(
-                global_pose2, original_joint_order=self.skel.bvh_joint_order, new_joint_order=self.skel.lh_fingers_only)),dim = -2))
-            syn_hand_motion_embedding_ = self.hand_mot_enc.encode(torch.cat((self.p2_rhand_pos, self.p1_lhand_pos), dim=-2))
-            
-            _global_action_pose = self.skel.revert_original_bvh_joints_poses(self.glob_p1_lhand_pos, self.skel.bvh_joint_reduced,
-                                                                    self.skel.lh_fingers_only)
-            _global_action_pose = self.skel.revert_original_bvh_joints_poses(self.glob_p1_rhand_pos, self.skel.bvh_joint_reduced,
-                                                                  self.skel.rh_fingers_only, _global_action_pose)
-            _global_action_pose = self.skel.revert_original_bvh_joints_poses(action_pose, self.skel.bvh_joint_reduced,
-                                                                                  self.skel.body_only, _global_action_pose)
-            gt_global_reaction_pose2 = self.skel.revert_original_bvh_joints_poses(self.glob_p1_lhand_pos, self.skel.bvh_joint_reduced,
-                                                                    self.skel.lh_fingers_only)
-            gt_global_reaction_pose2 = self.skel.revert_original_bvh_joints_poses(self.glob_p1_rhand_pos, self.skel.bvh_joint_reduced,
-                                                                  self.skel.rh_fingers_only, gt_global_reaction_pose2)
-            gt_global_reaction_pose2 = self.skel.revert_original_bvh_joints_poses(gt_reaction_pose, self.skel.bvh_joint_reduced,
-                                                                                  self.skel.body_only, gt_global_reaction_pose2)
             
             rec_global_reaction_pose = self.skel.revert_original_bvh_joints_poses(self.p2_lhand_pos, self.skel.bvh_joint_reduced,
                                                                     self.skel.lh_fingers_only)
@@ -394,50 +429,36 @@ class Trainer:
                                                                   self.skel.rh_fingers_only, rec_global_reaction_pose)
             rec_global_reaction_pose = self.skel.revert_original_bvh_joints_poses(reaction_pose, self.skel.bvh_joint_reduced,
                                                                                   self.skel.body_only, rec_global_reaction_pose)
-            
-            global_reaction_pose.append(rec_global_reaction_pose)
-            global_action_pose.append(_global_action_pose)
-            global_gt_reaction_pose.append(gt_global_reaction_pose2)
+            full_reactive_pose = self.rearrange_joints_full(rec_global_reaction_pose, p2_parent_rel)
+
+            global_reaction_pose.append(full_reactive_pose.reshape(B, T, 69, 3))
+            global_action_pose.append(global_pose1.reshape(B, T, 69, 3))
+            global_gt_reaction_pose.append(global_pose2.reshape(B, T, 69, 3))
             gt_motion_embedding.append(gt_motion_embedding_.reshape(B*T, 128))
             syn_motion_embedding.append(syn_motion_embedding_.reshape(B*T, 128))
-            gt_hand_motion_embedding.append(gt_hand_motion_embedding_.reshape(B*T, 128))
-            syn_hand_motion_embedding.append(syn_hand_motion_embedding_.reshape(B*T, 128))
             
         global_action_pose = torch.cat(global_action_pose, dim=0).detach().cpu().numpy()
         global_reaction_pose = torch.cat(global_reaction_pose, dim=0).detach().cpu().numpy()
         global_gt_reaction_pose = torch.cat(global_gt_reaction_pose, dim=0).detach().cpu().numpy()
         gt_motion_embedding = torch.cat(gt_motion_embedding, dim=0).detach().cpu().numpy()
         syn_motion_embedding = torch.cat(syn_motion_embedding, dim=0).detach().cpu().numpy()
-        gt_hand_motion_embedding = torch.cat(gt_hand_motion_embedding, dim=0).detach().cpu().numpy()
-        syn_hand_motion_embedding = torch.cat(syn_hand_motion_embedding, dim=0).detach().cpu().numpy()
+        
         mpjpe =  mean_l2di_(global_reaction_pose, global_gt_reaction_pose).item()
-        jitter =  mean_l2di_(global_reaction_pose[:, 1:] - global_reaction_pose[:, :-1],
-                             global_gt_reaction_pose[:, 1:] - global_gt_reaction_pose[:, :-1]).item()
+        jitter =  mean_jitter(global_reaction_pose,
+                             global_gt_reaction_pose).item()
         gt_mu, gt_cov = calculate_activation_statistics(gt_motion_embedding)
         syn_mu, syn_cov = calculate_activation_statistics(syn_motion_embedding)
-        gt_hand_mu, gt_hand_cov = calculate_activation_statistics(gt_hand_motion_embedding)
-        syn_hand_mu, syn_hand_cov = calculate_activation_statistics(syn_hand_motion_embedding)
+        
         fid = calculate_frechet_distance(gt_mu, gt_cov, syn_mu, syn_cov)
-        hand_fid = calculate_frechet_distance(gt_hand_mu, gt_hand_cov, gt_hand_mu, gt_hand_cov)
         diversity = calculate_diversity(syn_motion_embedding, diversity_times=300)
         GT_diversity = calculate_diversity(gt_motion_embedding, diversity_times=300)
         print('mpjpe', mpjpe)
         print('jitter', jitter)
         print('FID', fid)
+        print('GT Diversity', GT_diversity)
         print('Diversity', diversity)
-        output_metrics_dict = {
-            'mpjpe': float(mpjpe),
-            'jitter': float(jitter),
-            'diversity': float(diversity),
-            'gt_diversity': float(GT_diversity),
-            'fid': float(fid),
-        }
-
-        # Save JSON string to a text file
-        savefile = makepath(os.path.join(args.load[:-2], self.testtime_split, 'metrics.txt'), isfile=True)
-        
-        with open(savefile, "w") as filep:
-            json.dump(output_metrics_dict, filep)        
+            
+      
             
 if __name__ == '__main__':
     args = argparseNloop()
