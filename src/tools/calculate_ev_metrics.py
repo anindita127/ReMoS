@@ -2,32 +2,28 @@ import numpy as np
 import os
 import pickle
 import sys
+import torch
 sys.path.append('.')
 sys.path.append('..')
 from scipy import linalg
 
-def mean_l2di_(a,b):
-    import torch
-    x = np.mean(np.sqrt(np.sum((a - b)**2, -1)))
+def mean_l2di_(reaction, reaction_gt):
+    x = np.mean(np.sqrt(np.sum((reaction - reaction_gt)**2, -1)))
     return x
 
-
+def mean_jitter(reaction, reaction_gt, scale=0.1):
+    a = reaction[:, 1:] - reaction[:, :-1]
+    b = reaction_gt[:, 1:] - reaction_gt[:, :-1]
+    x = np.mean(np.sqrt(np.sum((a - b)**2, -1))) * scale
+    return x
 
 # (X - X_train)*(X - X_train) = -2X*X_train + X*X + X_train*X_train
-def euclidean_distance_matrix(matrix1, matrix2):
-    """
-        Params:
-        -- matrix1: N1 x D
-        -- matrix2: N2 x D
-        Returns:
-        -- dist: N1 x N2
-        dist[i, j] == distance(matrix1[i], matrix2[j])
-    """
+def euclidean_distance_matrix(matrix1, matrix2, scale=1.0):
     assert matrix1.shape[1] == matrix2.shape[1]
     d1 = -2 * np.dot(matrix1, matrix2.T)    # shape (num_test, num_train)
     d2 = np.sum(np.square(matrix1), axis=1, keepdims=True)    # shape (num_test, 1)
     d3 = np.sum(np.square(matrix2), axis=1)     # shape (num_train, )
-    dists = np.sqrt(d1 + d2 + d3)  # broadcasting
+    dists = np.sqrt(d1 + d2 + d3) * scale # broadcasting
     return dists
 
 def calculate_top_k(mat, top_k):
@@ -69,26 +65,19 @@ def calculate_matching_score(embedding1, embedding2, sum_all=False):
 
 
 def calculate_activation_statistics(activations):
-    """
-    Params:
-    -- activation: num_samples x dim_feat
-    Returns:
-    -- mu: dim_feat
-    -- sigma: dim_feat x dim_feat
-    """
     mu = np.mean(activations, axis=0)
     cov = np.cov(activations, rowvar=False)
     return mu, cov
 
 
-def calculate_diversity(activation, diversity_times):
+def calculate_diversity(activation, diversity_times, scale=1.0):
     assert len(activation.shape) == 2
     assert activation.shape[0] > diversity_times
     num_samples = activation.shape[0]
 
     first_indices = np.random.choice(num_samples, diversity_times, replace=False)
     second_indices = np.random.choice(num_samples, diversity_times, replace=False)
-    dist = linalg.norm(activation[first_indices] - activation[second_indices], axis=1)
+    dist = linalg.norm(activation[first_indices] - activation[second_indices], axis=1) * scale
     return dist.mean()
 
 
@@ -103,24 +92,7 @@ def calculate_multimodality(activation, multimodality_times):
     return dist.mean()
 
 
-def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
-    """Numpy implementation of the Frechet Distance.
-    The Frechet distance between two multivariate Gaussians X_1 ~ N(mu_1, C_1)
-    and X_2 ~ N(mu_2, C_2) is
-            d^2 = ||mu_1 - mu_2||^2 + Tr(C_1 + C_2 - 2*sqrt(C_1*C_2)).
-    Stable version by Dougal J. Sutherland.
-    Params:
-    -- mu1   : Numpy array containing the activations of a layer of the
-               inception net (like returned by the function 'get_predictions')
-               for generated samples.
-    -- mu2   : The sample mean over activations, precalculated on an
-               representative dataset set.
-    -- sigma1: The covariance matrix over activations for generated samples.
-    -- sigma2: The covariance matrix over activations, precalculated on an
-               representative dataset set.
-    Returns:
-    --   : The Frechet Distance.
-    """
+def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, scale=1e+1, eps=1e-6):
 
     mu1 = np.atleast_1d(mu1)
     mu2 = np.atleast_1d(mu2)
@@ -153,6 +125,5 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
     tr_covmean = np.trace(covmean)
 
-    return (diff.dot(diff) + np.trace(sigma1) +
-            np.trace(sigma2) - 2 * tr_covmean)
-    
+    return scale * ((diff.dot(diff) + np.trace(sigma1) +
+            np.trace(sigma2) - 2 * tr_covmean))
