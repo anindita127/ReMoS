@@ -74,7 +74,6 @@ class Trainer:
         self.epochs_completed = self.book.last_epoch
         self.frames = args.frames 
         self.model = args.model
-        self.lambda_loss = args.lambda_loss
         self.testtime_split = split
         self.num_jts = num_jts
         self.model_pose = VanillaTransformer(args).to(self.device).float()
