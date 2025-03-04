@@ -479,7 +479,7 @@ class VanillaTransformer(nn.Module):
         output[~mask.T] = 0
         output = output.permute(1, 0, 2)
         loss = self.mse_loss(output, pose2.reshape(bs, T, -1))
-        return output
+        return output, loss
 
     def encode(self, pose):
         bs = pose.shape[0]
